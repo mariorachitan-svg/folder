@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Review Posts Creator</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap');
+body { margin:0; padding:0; font-family:'Poppins',sans-serif; background: linear-gradient(135deg,#dff6ff,#e6f7ff); display:flex; justify-content:center; padding-top:50px; }
+#topBar { position:fixed; top:10px; right:20px; display:flex; align-items:center; gap:10px; background:rgba(255,255,255,0.2); backdrop-filter:blur(10px); padding:10px 20px; border-radius:20px; box-shadow:0 4px 15px rgba(0,0,0,0.1); }
+#userNameDisplay { font-weight:bold; color:#4facfe; font-size:16px; }
+#reviewCard { background: rgba(255,255,255,0.25); backdrop-filter: blur(15px); border-radius:20px; padding:30px; width:90%; max-width:700px; box-shadow:0 8px 32px rgba(31,38,135,0.37); margin-top:80px; }
+h1 { font-size:36px; text-align:center; margin-bottom:20px; background:linear-gradient(90deg,#4facfe,#00f2fe); -webkit-background-clip:text; -webkit-text-fill-color:transparent; text-shadow:0 0 10px rgba(79,172,254,0.7),0 0 20px rgba(0,242,254,0.5),0 0 40px rgba(0,242,254,0.3); }
+label { display:block; margin-top:10px; font-weight:bold; }
+input, textarea { width:100%; padding:8px; margin-top:5px; border-radius:8px; border:1px solid rgba(79,172,254,0.5); outline:none; font-size:14px; }
+button { margin-top:10px; padding:8px 16px; font-size:14px; font-weight:bold; color:white; background: linear-gradient(135deg,#4facfe,#00f2fe); border:none; border-radius:50px; cursor:pointer; box-shadow:0 0 10px rgba(79,172,254,0.7),0 0 20px rgba(0,242,254,0.5); transition:all 0.3s ease; }
+button:hover { transform:scale(1.05); box-shadow:0 0 25px rgba(79,172,254,1),0 0 50px rgba(0,242,254,0.9); }
+.reviewItem { background: rgba(255,255,255,0.35); padding:15px; border-radius:12px; margin-top:10px; position:relative; }
+.reviewItem .actions { position:absolute; top:10px; right:10px; }
+.replyItem { background: rgba(79,172,254,0.2); padding:10px; margin-top:10px; border-radius:10px; margin-left:20px; }
+</style>
+</head>
+<body>
+
+<div id="topBar">
+  <span id="userNameDisplay">Guest</span>
+  <button id="signUpBtn">Sign Up</button>
+  <button id="changeNameBtn">Change Name</button>
+</div>
+
+<div id="reviewCard">
+<h1>Create Review Post</h1>
+
+<label>Title</label>
+<input type="text" id="postTitle" placeholder="Post title">
+<label>Content</label>
+<textarea id="postContent" rows="3" placeholder="Write your post..."></textarea>
+<button onclick="addPost()">Create Post</button>
+
+<h2>All Posts</h2>
+<div id="postsList"></div>
+</div>
+
+<script>
+let posts = JSON.parse(localStorage.getItem("posts")) || [];
+let userName = localStorage.getItem("userName") || "";
+
+const userDisplay = document.getElementById("userNameDisplay");
+const signUpBtn = document.getElementById("signUpBtn");
+const changeNameBtn = document.getElementById("changeNameBtn");
+
+function updateUserDisplay(){ userDisplay.textContent = userName || "Guest"; }
+updateUserDisplay();
+
+signUpBtn.onclick = () => {
+  if(!userName){
+    const name = prompt("Enter your name:"); 
+    if(name){ userName=name; localStorage.setItem("userName",userName); updateUserDisplay(); }
+  } else alert("Already signed up. Use Change Name.");
+};
+changeNameBtn.onclick = () => {
+  const name = prompt("Enter new name:", userName);
+  if(name){ userName=name; localStorage.setItem("userName",userName); updateUserDisplay(); }
+};
+
+// Add Post
+function addPost(){
+  if(!userName){ alert("Please sign up first."); return; }
+  const title=document.getElementById("postTitle").value.trim();
+  const content=document.getElementById("postContent").value.trim();
+  if(!title||!content){ alert("Fill all fields."); return; }
+  const post={ id:Date.now(), author:userName, title, content, replies:[] };
+  posts.push(post);
+  savePosts();
+  document.getElementById("postTitle").value="";
+  document.getElementById("postContent").value="";
+  renderPosts();
+}
+
+// Save
+function savePosts(){ localStorage.setItem("posts", JSON.stringify(posts)); }
+
+// Render
+function renderPosts(){
+  const list=document.getElementById("postsList"); list.innerHTML="";
+  posts.forEach(post=>{
+    const div=document.createElement("div"); div.className="reviewItem";
+    div.innerHTML=`<b>${post.title}</b> by <i>${post.author}</i><p>${post.content}</p>`;
+    const actions=document.createElement("div"); actions.className="actions";
+    
+    if(post.author===userName){
+      const editBtn=document.createElement("button"); editBtn.textContent="Edit"; editBtn.onclick=()=>editPost(post.id);
+      const delBtn=document.createElement("button"); delBtn.textContent="Delete"; delBtn.onclick=()=>deletePost(post.id);
+      actions.appendChild(editBtn); actions.appendChild(delBtn);
+    }
+    
+    const replyBtn=document.createElement("button"); replyBtn.textContent="Reply"; replyBtn.onclick=()=>addReply(post.id);
+    actions.appendChild(replyBtn);
+    div.appendChild(actions);
+
+    // Replies
+    post.replies.forEach(rep=>{
+      const repDiv=document.createElement("div"); repDiv.className="replyItem";
+      repDiv.innerHTML=`<b>${rep.author}</b><p>${rep.content}</p>`;
+      const repActions=document.createElement("div");
+      if(rep.author===userName){
+        const repEdit=document.createElement("button"); repEdit.textContent="Edit"; repEdit.onclick=()=>editReply(post.id,rep.id);
+        const repDel=document.createElement("button"); repDel.textContent="Delete"; repDel.onclick=()=>deleteReply(post.id,rep.id);
+        repActions.appendChild(repEdit); repActions.appendChild(repDel);
+      }
+      repDiv.appendChild(repActions);
+      div.appendChild(repDiv);
+    });
+
+    list.appendChild(div);
+  });
+}
+
+// Post edit/delete
+function editPost(id){
+  const post=posts.find(p=>p.id===id); if(!post) return;
+  const newTitle=prompt("Edit Title",post.title);
+  const newContent=prompt("Edit Content",post.content);
+  if(newTitle && newContent){ post.title=newTitle; post.content=newContent; savePosts(); renderPosts(); }
+}
+function deletePost(id){ if(confirm("Delete post?")){ posts=posts.filter(p=>p.id!==id); savePosts(); renderPosts(); }}
+
+// Reply functions
+function addReply(postId){
+  const post=posts.find(p=>p.id===postId); if(!post) return;
+  const content=prompt("Reply Content:"); if(!content) return;
+  post.replies.push({ id:Date.now(), author:userName, content });
+  savePosts(); renderPosts();
+}
+function editReply(postId, replyId){
+  const post=posts.find(p=>p.id===postId); if(!post) return;
+  const reply=post.replies.find(r=>r.id===replyId); if(!reply) return;
+  const newContent=prompt("Edit Reply",reply.content);
+  if(newContent){ reply.content=newContent; savePosts(); renderPosts(); }
+}
+function deleteReply(postId, replyId){
+  const post=posts.find(p=>p.id===postId); if(!post) return;
+  if(confirm("Delete reply?")){ post.replies=post.replies.filter(r=>r.id!==replyId); savePosts(); renderPosts(); }
+}
+
+renderPosts();
+</script>
+</body>
+</html>
